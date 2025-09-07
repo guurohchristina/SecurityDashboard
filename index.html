@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Cybersecurity Dashboard • Guuroh Christina</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --bg:#0f172a;           /* slate-900 */
+      --panel:#111827;        /* gray-900 */
+      --panel-2:#1f2937;      /* gray-800 */
+      --text:#e5e7eb;         /* gray-200 */
+      --muted:#9ca3af;        /* gray-400 */
+      --accent:#38bdf8;       /* sky-400 */
+      --good:#22c55e;         /* green-500 */
+      --warn:#f59e0b;         /* amber-500 */
+      --bad:#ef4444;          /* red-500 */
+      --chip:#0b1222;
+      --cardRadius:18px;
+      --shadow:0 10px 30px rgba(0,0,0,.25);
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0; background:linear-gradient(180deg,#0b1022,#0f172a 25%, #0f172a);
+      color:var(--text); font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial;
+    }
+    header{
+      position:sticky; top:0; z-index:50;
+      background:rgba(15,23,42,.8); backdrop-filter: blur(8px);
+      border-bottom:1px solid #1f2937;
+    }
+    .wrap{max-width:1220px; margin:0 auto; padding:18px 20px}
+    .row{display:flex; align-items:center; gap:14px; flex-wrap:wrap}
+    .brand{display:flex; align-items:center; gap:12px}
+    .brand .dot{width:12px; height:12px; border-radius:50%; background:var(--accent); box-shadow:0 0 18px var(--accent)}
+    .brand h1{font-size:1.05rem; margin:0; letter-spacing:.2px}
+    .filters{margin-left:auto; display:flex; gap:10px; flex-wrap:wrap}
+    select,input{
+      background:var(--panel-2); color:var(--text); border:1px solid #263143;
+      padding:10px 12px; border-radius:10px; outline:none;
+    }
+    input::placeholder{color:var(--muted)}
+    main{max-width:1220px; margin:20px auto; padding:0 20px}
+    .kpis{display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:16px}
+    .card{
+      background:linear-gradient(180deg,#0f172a, #111827);
+      border:1px solid #1f2937; border-radius:var(--cardRadius); box-shadow:var(--shadow);
+      padding:18px;
+    }
+    .kpi .label{color:var(--muted); font-size:.85rem}
+    .kpi .value{font-size:1.8rem; font-weight:700; margin-top:6px}
+    .kpi .delta{font-size:.85rem; margin-top:6px}
+    .delta.good{color:var(--good)} .delta.bad{color:var(--bad)}
+    .grid{display:grid; grid-template-columns:2fr 1fr; gap:16px; margin-top:16px}
+    canvas{width:100%; height:280px}
+    .legend{display:flex; gap:8px; flex-wrap:wrap; margin-top:10px}
+    .chip{font-size:.78rem; color:#bcd; background:var(--chip); border:1px solid #1e293b; padding:6px 10px; border-radius:999px}
+    table{width:100%; border-collapse:collapse; margin-top:10px}
+    th,td{padding:12px 10px; text-align:left; border-bottom:1px solid #1f2937; font-size:.92rem}
+    th{color:#aab4c2; font-weight:600}
+    .sev{display:inline-flex; align-items:center; gap:8px; padding:4px 10px; border-radius:999px; font-size:.8rem; border:1px solid rgba(255,255,255,.06)}
+    .sev.low{color:var(--good); background:rgba(34,197,94,.1)}
+    .sev.med{color:var(--warn); background:rgba(245,158,11,.12)}
+    .sev.high{color:var(--bad); background:rgba(239,68,68,.12)}
+    .pill{display:inline-block; font-size:.75rem; color:#cbd5e1; background:#0b1222; padding:3px 8px; border-radius:8px; border:1px solid #1f2937}
+    .footer-note{color:#93a4b7; font-size:.82rem; margin-top:12px}
+    @media (max-width:1024px){ .grid{grid-template-columns:1fr} .kpis{grid-template-columns:repeat(2,1fr)} }
+    @media (max-width:560px){ .kpis{grid-template-columns:1fr} .brand h1{font-size:.95rem} }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap row">
+      <div class="brand">
+        <div class="dot"></div>
+        <h1>Security Operations Dashboard</h1>
+      </div>
+      <div class="filters">
+        <select id="range">
+          <option value="24h">Last 24h</option>
+          <option value="7d" selected>Last 7 days</option>
+          <option value="30d">Last 30 days</option>
+        </select>
+        <input id="q" type="search" placeholder="Filter by user or IP (e.g., chrissie / 10.0.1.9)"/>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <!-- KPIs -->
+    <section class="kpis">
+      <div class="card kpi">
+        <div class="label">Total Login Attempts</div>
+        <div class="value" id="kpi-total">–</div>
+        <div class="delta good" id="kpi-total-delta">+0% vs prev</div>
+      </div>
+      <div class="card kpi">
+        <div class="label">Failed Logins</div>
+        <div class="value" id="kpi-failed">–</div>
+        <div class="delta" id="kpi-failed-rate">–% failure rate</div>
+      </div>
+      <div class="card kpi">
+        <div class="label">Unique IPs</div>
+        <div class="value" id="kpi-ips">–</div>
+        <div class="delta" id="kpi-geo">Top: –</div>
+      </div>
+      <div class="card kpi">
+        <div class="label">Active Alerts</div>
+        <div class="value" id="kpi-alerts">–</div>
+        <div class="delta bad" id="kpi-alert-note">Review anomalies</div>
+      </div>
+    </section>
+
+    <!-- Charts -->
+    <section class="grid">
+      <div class="card">
+        <div class="row" style="justify-content:space-between; align-items:baseline">
+          <h3 style="margin:0">Login Attempts Over Time</h3>
+          <div class="legend">
+            <span class="chip">Success</span>
+            <span class="chip">Failed</span>
+          </div>
+        </div>
+        <canvas id="chartLine"></canvas>
+      </div>
+      <div class="card">
+        <h3 style="margin-top:0">Top Source IPs</h3>
+        <canvas id="chartBar"></canvas>
+        <p class="footer-note">Identify noisy or suspicious IPs generating repeated failures.</p>
+      </div>
+    </section>
+
+    <!-- Donut + Table -->
+    <section class="grid" style="grid-template-columns:1fr 2fr; margin-top:16px">
+      <div class="card">
+        <h3 style="margin-top:0">Outcome Breakdown</h3>
+        <canvas id="chartPie"></canvas>
+        <div class="legend" id="legendPie"></div>
+      </div>
+      <div class="card">
+        <div class="row" style="justify-content:space-between; align-items:baseline">
+          <h3 style="margin:0">Recent Security Events</h3>
+          <span class="pill" id="tableCount">0 events</span>
+        </div>
+        <table id="events">
+          <thead>
+            <tr>
+              <th>Time</th>
+              <th>User</th>
+              <th>IP</th>
+              <th>Event</th>
+              <th>Severity</th>
+            </tr>
+          </thead>
+          <tbody><!-- rows injected by JS --></tbody>
+        </table>
+        <p class="footer-note">Tip: Use the search box above to filter by user or IP.</p>
+      </div>
+    </section>
+  </main>
+
+  <!-- Charts CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script>
+    /***********************
+     * Demo Data Generator *
+     ***********************/
+    const USERS = ["christina","c.koranteng","admin","j.smith","ado","chrissie","guest"];
+    const IPS   = ["10.0.1.9","10.0.2.14","10.0.3.2","172.16.0.44","192.168.1.7","41.210.20.5","102.176.54.11"];
+    const EVENTS = ["Login Success","Login Failed","Multiple Failed Attempts","Password Reset","Account Locked"];
+
+    function rand(min,max){ return Math.floor(Math.random()*(max-min+1))+min; }
+    function pick(arr){ return arr[rand(0,arr.length-1)]; }
+    function iso(d){ return new Date(d).toLocaleString(); }
+
+    function generateEvents(days=7){
+      const out=[];
+      const now = new Date();
+      for(let d=days-1; d>=0; d--){
+        const day = new Date(now); day.setDate(now.getDate()-d);
+        const perDay = rand(45,95);
+        for(let i=0;i<perDay;i++){
+          const ts = new Date(day);
+          ts.setHours(rand(0,23), rand(0,59), rand(0,59), 0);
+          const success = Math.random() > 0.22; // ~78% success
+          let event = success ? "Login Success" : "Login Failed";
+          // occasional special events
+          if(!success && Math.random() < 0.1) event = "Multiple Failed Attempts";
+          if(Math.random() < 0.02) event = "Password Reset";
+          if(Math.random() < 0.01) event = "Account Locked";
+          out.push({
+            time: ts,
+            user: pick(USERS),
+            ip: pick(IPS),
+            event,
+            severity: event==="Login Failed" ? "Low" :
+                      event==="Login Success" ? "Low" :
+                      event==="Password Reset" ? "Medium" :
+                      event==="Account Locked" ? "High" : "Medium"
+          });
+        }
+      }
+      // sort by time desc
+      return out.sort((a,b)=>b.time-a.time);
+    }
+
+    /*********************
+     * State & Rendering *
+     *********************/
+    let state = {
+      range: "7d",
+      q: "",
+      rows: generateEvents(7)
+    };
+
+    // KPI helpers
+    function uniqueCount(arr, key){ return new Set(arr.map(x=>x[key])).size; }
+    function summarise(rows){
+      const total = rows.length;
+      const failed = rows.filter(r=>r.event!=="Login Success").length;
+      const success = total - failed;
+      const rate = total ? Math.round((failed/total)*100) : 0;
+      const ips = uniqueCount(rows,"ip");
+      const alerts = rows.filter(r=>r.event==="Multiple Failed Attempts" || r.event==="Account Locked").length;
+      // top IP
+      const ipCounts = {};
+      rows.forEach(r=> ipCounts[r.ip] = (ipCounts[r.ip]||0)+1 );
+      const topIp = Object.entries(ipCounts).sort((a,b)=>b[1]-a[1])[0]?.[0] || "–";
+      return {total, failed, success, rate, ips, alerts, topIp};
+    }
+
+    /************
+     * Filters  *
+     ************/
+    function applyFilters(){
+      const {q} = state;
+      let rows = [...state.rows];
+
+      // text filter
+      if(q){
+        const s = q.toLowerCase().trim();
+        rows = rows.filter(r => r.user.toLowerCase().includes(s) || r.ip.toLowerCase().includes(s));
+      }
+      return rows;
+    }
+
+    /****************
+     * Charts setup *
+     ****************/
+    let lineChart, barChart, pieChart;
+    function buildCharts(rows){
+      const ctxLine = document.getElementById("chartLine");
+      const ctxBar  = document.getElementById("chartBar");
+      const ctxPie  = document.getElementById("chartPie");
+
+      // group by hour/day depending on range
+      const groupBy = (state.range==="24h") ? "hour" : "day";
+      const buckets = {};
+      rows.forEach(r=>{
+        const d = new Date(r.time);
+        const key = groupBy==="hour"
+          ? `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()} ${d.getHours()}:00`
+          : d.toDateString();
+        if(!buckets[key]) buckets[key]={success:0, failed:0};
+        if(r.event==="Login Success") buckets[key].success++;
+        else buckets[key].failed++;
+      });
+      const labels = Object.keys(buckets).sort((a,b)=> new Date(a)-new Date(b));
+      const successData = labels.map(k => buckets[k].success);
+      const failedData  = labels.map(k => buckets[k].failed);
+
+      // destroy existing charts if any
+      [lineChart, barChart, pieChart].forEach(ch => ch && ch.destroy());
+
+      lineChart = new Chart(ctxLine, {
+        type:"line",
+        data:{
+          labels,
+          datasets:[
+            {label:"Success", data:successData, tension:.35, borderColor:"#22c55e", backgroundColor:"rgba(34,197,94,.15)", fill:true},
+            {label:"Failed",  data:failedData,  tension:.35, borderColor:"#ef4444", backgroundColor:"rgba(239,68,68,.15)", fill:true}
+          ]
+        },
+        options:{
+          plugins:{ legend:{display:false}},
+          scales:{
+            x:{ grid:{color:"rgba(148,163,184,.1)"}},
+            y:{ grid:{color:"rgba(148,163,184,.08)"}, beginAtZero:true, ticks:{ precision:0}}
+          }
+        }
+      });
+
+      // Top IPs (failed-heavy)
+      const ipAgg = {};
+      rows.forEach(r=>{
+        if(r.event!=="Login Success"){
+          ipAgg[r.ip] = (ipAgg[r.ip]||0)+1;
+        }
+      });
+      const ipPairs = Object.entries(ipAgg).sort((a,b)=>b[1]-a[1]).slice(0,6);
+      barChart = new Chart(ctxBar, {
+        type:"bar",
+        data:{
+          labels: ipPairs.map(p=>p[0]),
+          datasets:[{label:"Failed Attempts", data: ipPairs.map(p=>p[1]), backgroundColor:"#f59e0b"}]
+        },
+        options:{
+          plugins:{ legend:{display:false}},
+          scales:{
+            x:{ grid:{display:false}},
+            y:{ grid:{color:"rgba(148,163,184,.08)"}, beginAtZero:true, ticks:{ precision:0}}
+          }
+        }
+      });
+
+      // Pie: Outcome breakdown
+      const {success, failed} = summarise(rows);
+      pieChart = new Chart(ctxPie, {
+        type:"doughnut",
+        data:{
+          labels:["Success","Failed"],
+          datasets:[{ data:[success, failed], backgroundColor:["#22c55e","#ef4444"]}]
+        },
+        options:{ plugins:{ legend:{display:false}}, cutout:"62%" }
+      });
+      document.getElementById("legendPie").innerHTML =
+        `<span class="chip">Success: ${success}</span><span class="chip">Failed: ${failed}</span>`;
+    }
+
+    /*********************
+     * Table & KPIs fill *
+     *********************/
+    function renderTable(rows){
+      const tbody = document.querySelector("#events tbody");
+      tbody.innerHTML = "";
+      const maxRows = 12;
+      rows.slice(0, maxRows).forEach(r=>{
+        const tr = document.createElement("tr");
+        const sevClass = r.severity==="High" ? "high" : r.severity==="Medium" ? "med" : "low";
+        tr.innerHTML = `
+          <td>${iso(r.time)}</td>
+          <td>${r.user}</td>
+          <td>${r.ip}</td>
+          <td>${r.event}</td>
+          <td><span class="sev ${sevClass}">${r.severity}</span></td>
+        `;
+        tbody.appendChild(tr);
+      });
+      document.getElementById("tableCount").textContent = `${rows.length} events`;
+    }
+
+    function renderKpis(rows, prevRows=[]){
+      const s = summarise(rows);
+      const p = summarise(prevRows);
+      const delta = p.total ? Math.round(((s.total - p.total)/p.total)*100) : 0;
+      document.getElementById("kpi-total").textContent = s.total.toLocaleString();
+      document.getElementById("kpi-total-delta").textContent = `${delta>=0?"+":""}${delta}% vs prev`;
+      document.getElementById("kpi-failed").textContent = s.failed.toLocaleString();
+      document.getElementById("kpi-failed-rate").textContent = `${s.rate}% failure rate`;
+      document.getElementById("kpi-ips").textContent = s.ips.toLocaleString();
+      document.getElementById("kpi-geo").textContent = `Top: ${s.topIp}`;
+      document.getElementById("kpi-alerts").textContent = s.alerts.toLocaleString();
+      document.getElementById("kpi-alert-note").textContent = s.alerts>5 ? "Spike detected" : "Normal range";
+      document.getElementById("kpi-alert-note").className = `delta ${s.alerts>5 ? "bad":"good"}`;
+    }
+
+    /*****************
+     * Range control *
+     *****************/
+    function setRange(range){
+      state.range = range;
+      const days = range==="24h" ? 1 : range==="7d" ? 7 : 30;
+      state.rows = generateEvents(days);
+      update();
+    }
+
+    function update(){
+      const filtered = applyFilters();
+      // Build a "previous period" for delta
+      const days = state.range==="24h" ? 1 : state.range==="7d" ? 7 : 30;
+      const prev = generateEvents(days); // synthetic previous sample
+      renderKpis(filtered, prev);
+      buildCharts(filtered);
+      renderTable(filtered);
+    }
+
+    /********************
+     * Event Listeners  *
+     ********************/
+    document.getElementById("range").addEventListener("change", (e)=> setRange(e.target.value));
+    document.getElementById("q").addEventListener("input", (e)=> { state.q = e.target.value; update(); });
+
+    // init
+    update();
+  </script>
+</body>
+</html>
